@@ -1,0 +1,24 @@
+{
+  "rules": [
+    {
+      "domain_keyword": ["leetcode"]
+    },
+    {
+      "process_name": [
+        "iTerm2",
+        "WebStorm",
+        "idea",
+        "curl",
+        "wget",
+        "git",
+        "npm",
+        "pnpm",
+        "python",
+        "pip",
+        "python3",
+        "pip3"
+      ]
+    }
+  ],
+  "version": 1
+}

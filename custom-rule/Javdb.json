@@ -1,0 +1,8 @@
+{
+  "rules": [
+    {
+      "domain_keyword": ["javdb", "jdbstatic", "playno1"]
+    }
+  ],
+  "version": 1
+}
