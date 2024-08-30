@@ -1,13 +1,15 @@
 {
   "rules": [
     {
-      "domain_keyword": ["leetcode"]
+      "domain_keyword": ["leetcode", "zed"]
     },
     {
       "process_name": [
         "iTerm2",
         "WebStorm",
-        "idea",
+        "PyCharm",
+        "IntelliJ IDEA",
+        "Zed",
         "curl",
         "wget",
         "git",
