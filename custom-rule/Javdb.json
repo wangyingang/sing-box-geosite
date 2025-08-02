@@ -2,9 +2,6 @@
   "rules": [
     {
       "domain_keyword": ["javdb", "jdbstatic", "playno1"]
-    },
-    {
-      "domain_suffix": ["dmm.co.jp"]
     }
   ],
   "version": 1
