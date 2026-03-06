@@ -1,17 +1,11 @@
 {
+  "version": 4,
   "rules": [
     {
       "domain": [
         "ai.google.dev",
         "alkalimakersuite-pa.clients6.google.com",
         "makersuite.google.com"
-      ]
-    },
-    {
-      "domain_keyword": [
-        "colab",
-        "developerprofiles",
-        "generativelanguage"
       ]
     },
     {
@@ -24,7 +18,13 @@
         "generativeai.google",
         "proactivebackend-pa.googleapis.com"
       ]
+    },
+    {
+      "domain_keyword": [
+        "colab",
+        "developerprofiles",
+        "generativelanguage"
+      ]
     }
-  ],
-  "version": 1
+  ]
 }

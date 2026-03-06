@@ -1,16 +1,9 @@
 {
+  "version": 4,
   "rules": [
     {
       "domain": [
         "vsmarketplacebadge.apphb.com"
-      ]
-    },
-    {
-      "domain_keyword": [
-        "1drv",
-        "microsoft",
-        "onedrive",
-        "skydrive"
       ]
     },
     {
@@ -679,7 +672,20 @@
         "yammer.com",
         "yammerusercontent.com"
       ]
+    },
+    {
+      "domain_keyword": [
+        "1drv",
+        "microsoft",
+        "onedrive",
+        "skydrive"
+      ]
+    },
+    {
+      "process_name": [
+        "OneDrive",
+        "OneDriveUpdater"
+      ]
     }
-  ],
-  "version": 1
+  ]
 }

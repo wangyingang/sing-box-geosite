@@ -1,10 +1,6 @@
 {
+  "version": 4,
   "rules": [
-    {
-      "domain_keyword": [
-        "github"
-      ]
-    },
     {
       "domain_suffix": [
         "atom.io",
@@ -38,7 +34,11 @@
         "repo.new",
         "thegithubshop.com"
       ]
+    },
+    {
+      "domain_keyword": [
+        "github"
+      ]
     }
-  ],
-  "version": 1
+  ]
 }

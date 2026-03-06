@@ -1,4 +1,5 @@
 {
+  "version": 4,
   "rules": [
     {
       "domain": [
@@ -25,6 +26,5 @@
         "steamusercontent.com"
       ]
     }
-  ],
-  "version": 1
+  ]
 }

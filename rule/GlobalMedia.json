@@ -1,4 +1,5 @@
 {
+  "version": 4,
   "rules": [
     {
       "domain": [
@@ -39,36 +40,6 @@
         "rpg.pic-imges.com",
         "rthklive2-lh.akamaihd.net",
         "sydney.bing.com"
-      ]
-    },
-    {
-      "domain_keyword": [
-        "abematv.akamaized.net",
-        "anthropic",
-        "apiproxy-device-prod-nlb-",
-        "avoddashs",
-        "bbcfmt",
-        "claude",
-        "discovery.uplynk.com",
-        "dualstack.apiproxy-",
-        "dualstack.ichnaea-web-",
-        "hamivideo.cdn.hinet.net",
-        "hbogoasia",
-        "japonx",
-        "japronx",
-        "jooxweb-api",
-        "netflixdnstest",
-        "nivod",
-        "nowtv100",
-        "olevod",
-        "rthklive",
-        "spotify",
-        "tiktokcdn",
-        "ttvnw",
-        "tvbanywhere",
-        "uk-live",
-        "voddazn",
-        "youtube"
       ]
     },
     {
@@ -1351,6 +1322,36 @@
       ]
     },
     {
+      "domain_keyword": [
+        "abematv.akamaized.net",
+        "anthropic",
+        "apiproxy-device-prod-nlb-",
+        "avoddashs",
+        "bbcfmt",
+        "claude",
+        "discovery.uplynk.com",
+        "dualstack.apiproxy-",
+        "dualstack.ichnaea-web-",
+        "hamivideo.cdn.hinet.net",
+        "hbogoasia",
+        "japonx",
+        "japronx",
+        "jooxweb-api",
+        "netflixdnstest",
+        "nivod",
+        "nowtv100",
+        "olevod",
+        "rthklive",
+        "spotify",
+        "tiktokcdn",
+        "ttvnw",
+        "tvbanywhere",
+        "uk-live",
+        "voddazn",
+        "youtube"
+      ]
+    },
+    {
       "ip_cidr": [
         "1.201.0.0/24",
         "1.37.35.6/32",
@@ -2277,7 +2278,13 @@
         "96.4.63.99/32",
         "99.81.97.56/32"
       ]
+    },
+    {
+      "process_name": [
+        "com.viu.pad",
+        "com.viu.phone",
+        "com.vuclip.viu"
+      ]
     }
-  ],
-  "version": 1
+  ]
 }

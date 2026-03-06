@@ -1,12 +1,6 @@
 {
+  "version": 4,
   "rules": [
-    {
-      "domain_keyword": [
-        "steambroadcast",
-        "steamstore",
-        "steamuserimages"
-      ]
-    },
     {
       "domain_suffix": [
         "cdn-ali.content.steamchina.com",
@@ -61,7 +55,13 @@
         "valvesoftware.com",
         "wmsjsteam.com"
       ]
+    },
+    {
+      "domain_keyword": [
+        "steambroadcast",
+        "steamstore",
+        "steamuserimages"
+      ]
     }
-  ],
-  "version": 1
+  ]
 }

@@ -1,4 +1,5 @@
 {
+  "version": 4,
   "rules": [
     {
       "domain": [
@@ -6,12 +7,6 @@
         "lf16-pkgcdn.pitaya-clientai.com",
         "p16-tiktokcdn-com.akamaized.net",
         "trae-api-sg.mchost.guru"
-      ]
-    },
-    {
-      "domain_keyword": [
-        "musical.ly",
-        "tiktok"
       ]
     },
     {
@@ -42,7 +37,17 @@
         "trae.ai",
         "ttwebview.com"
       ]
+    },
+    {
+      "domain_keyword": [
+        "musical.ly",
+        "tiktok"
+      ]
+    },
+    {
+      "process_name": [
+        "com.zhiliaoapp.musically"
+      ]
     }
-  ],
-  "version": 1
+  ]
 }

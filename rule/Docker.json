@@ -1,4 +1,5 @@
 {
+  "version": 4,
   "rules": [
     {
       "domain": [
@@ -15,6 +16,5 @@
         "dockerhub.com"
       ]
     }
-  ],
-  "version": 1
+  ]
 }

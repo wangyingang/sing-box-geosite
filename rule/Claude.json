@@ -1,4 +1,5 @@
 {
+  "version": 4,
   "rules": [
     {
       "domain": [
@@ -11,6 +12,5 @@
         "claude.ai"
       ]
     }
-  ],
-  "version": 1
+  ]
 }

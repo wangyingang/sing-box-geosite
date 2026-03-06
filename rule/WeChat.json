@@ -1,4 +1,5 @@
 {
+  "version": 4,
   "rules": [
     {
       "domain": [
@@ -38,6 +39,5 @@
         "yun-hl.3g.qq.com"
       ]
     }
-  ],
-  "version": 1
+  ]
 }

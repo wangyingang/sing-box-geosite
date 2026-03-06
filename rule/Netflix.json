@@ -1,18 +1,11 @@
 {
+  "version": 4,
   "rules": [
     {
       "domain": [
         "e13252.dscg.akamaiedge.net",
         "h-netflix.online-metrix.net",
         "netflix.com.edgesuite.net"
-      ]
-    },
-    {
-      "domain_keyword": [
-        "apiproxy-device-prod-nlb-",
-        "dualstack.apiproxy-",
-        "dualstack.ichnaea-web-",
-        "netflixdnstest"
       ]
     },
     {
@@ -47,6 +40,14 @@
         "nflxvideo.net",
         "onetrust.com",
         "us-west-2.amazonaws.com"
+      ]
+    },
+    {
+      "domain_keyword": [
+        "apiproxy-device-prod-nlb-",
+        "dualstack.apiproxy-",
+        "dualstack.ichnaea-web-",
+        "netflixdnstest"
       ]
     },
     {
@@ -1171,7 +1172,11 @@
         "99.80.34.64/26",
         "99.80.88.0/25"
       ]
+    },
+    {
+      "process_name": [
+        "com.netflix.mediaclient"
+      ]
     }
-  ],
-  "version": 1
+  ]
 }

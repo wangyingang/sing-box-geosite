@@ -1,4 +1,5 @@
 {
+  "version": 4,
   "rules": [
     {
       "domain": [
@@ -21,6 +22,5 @@
         "toutiao.com"
       ]
     }
-  ],
-  "version": 1
+  ]
 }

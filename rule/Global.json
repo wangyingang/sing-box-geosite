@@ -1,4 +1,5 @@
 {
+  "version": 4,
   "rules": [
     {
       "domain": [
@@ -120,46 +121,6 @@
         "yandex-pogoda.static-storage.net",
         "yangzhi.app",
         "ztedevices.com"
-      ]
-    },
-    {
-      "domain_keyword": [
-        "1drv",
-        "1e100",
-        "abema",
-        "amazon",
-        "appledaily",
-        "avoddashs",
-        "avtb",
-        "bbcfmt",
-        "beetalk",
-        "blogspot",
-        "dlercloud",
-        "dropbox",
-        "facebook",
-        "fbcdn",
-        "gmail",
-        "google",
-        "instagram",
-        "jav",
-        "musical.ly",
-        "onedrive",
-        "paypal",
-        "pinterest",
-        "porn",
-        "sci-hub",
-        "skydrive",
-        "spotify",
-        "telegram",
-        "tiktok",
-        "ttvnw",
-        "twimg",
-        "twitter",
-        "uk-live",
-        "voddazn",
-        "whatsapp",
-        "wikileaks",
-        "youtube"
       ]
     },
     {
@@ -33050,6 +33011,46 @@
       ]
     },
     {
+      "domain_keyword": [
+        "1drv",
+        "1e100",
+        "abema",
+        "amazon",
+        "appledaily",
+        "avoddashs",
+        "avtb",
+        "bbcfmt",
+        "beetalk",
+        "blogspot",
+        "dlercloud",
+        "dropbox",
+        "facebook",
+        "fbcdn",
+        "gmail",
+        "google",
+        "instagram",
+        "jav",
+        "musical.ly",
+        "onedrive",
+        "paypal",
+        "pinterest",
+        "porn",
+        "sci-hub",
+        "skydrive",
+        "spotify",
+        "telegram",
+        "tiktok",
+        "ttvnw",
+        "twimg",
+        "twitter",
+        "uk-live",
+        "voddazn",
+        "whatsapp",
+        "wikileaks",
+        "youtube"
+      ]
+    },
+    {
       "ip_cidr": [
         "1.201.0.0/24",
         "101.32.118.0/23",
@@ -33168,7 +33169,11 @@
         "91.105.192.0/23",
         "91.108.0.0/16"
       ]
+    },
+    {
+      "process_name": [
+        "LookupViewService"
+      ]
     }
-  ],
-  "version": 1
+  ]
 }

@@ -1,10 +1,6 @@
 {
+  "version": 4,
   "rules": [
-    {
-      "domain_keyword": [
-        "speedtest"
-      ]
-    },
     {
       "domain_suffix": [
         "fast.com",
@@ -12,7 +8,11 @@
         "speed.cloudflare.com",
         "speed.dler.io"
       ]
+    },
+    {
+      "domain_keyword": [
+        "speedtest"
+      ]
     }
-  ],
-  "version": 1
+  ]
 }
