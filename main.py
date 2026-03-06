@@ -1,177 +1,300 @@
-import pandas as pd
-import re
-import concurrent.futures
-import os
+from __future__ import annotations
+
+import argparse
+import ipaddress
 import json
+import logging
+import subprocess
+from collections import defaultdict
+from pathlib import Path
+from typing import Iterable, Mapping
+from urllib.parse import urlparse
+
 import requests
 import yaml
-import ipaddress
 
-# 映射字典
-MAP_DICT = {'DOMAIN-SUFFIX': 'domain_suffix', 'HOST-SUFFIX': 'domain_suffix', 'DOMAIN': 'domain', 'HOST': 'domain', 'host': 'domain',
-            'DOMAIN-KEYWORD':'domain_keyword', 'HOST-KEYWORD': 'domain_keyword', 'host-keyword': 'domain_keyword', 'IP-CIDR': 'ip_cidr',
-            'ip-cidr': 'ip_cidr', 'IP-CIDR6': 'ip_cidr', 
-            'IP6-CIDR': 'ip_cidr','SRC-IP-CIDR': 'source_ip_cidr', 'GEOIP': 'geoip', 'DST-PORT': 'port',
-            'SRC-PORT': 'source_port', "URL-REGEX": "domain_regex", "DOMAIN-REGEX": "domain_regex"}
+LOGGER = logging.getLogger(__name__)
 
-def read_yaml_from_url(url):
-    response = requests.get(url)
+MANIFEST_NAME = ".generated-manifest.json"
+DOMAIN_FIELDS = frozenset({"domain", "domain_suffix", "domain_keyword", "domain_regex"})
+FIELD_ORDER = [
+    "domain",
+    "domain_suffix",
+    "domain_keyword",
+    "domain_regex",
+    "ip_cidr",
+    "source_ip_cidr",
+    "port",
+    "port_range",
+    "source_port",
+    "source_port_range",
+    "process_name",
+    "process_path",
+    "process_path_regex",
+    "package_name",
+    "network",
+]
+PATTERN_MAP = {
+    "DOMAIN": "domain",
+    "HOST": "domain",
+    "DOMAIN-SUFFIX": "domain_suffix",
+    "HOST-SUFFIX": "domain_suffix",
+    "DOMAIN-KEYWORD": "domain_keyword",
+    "HOST-KEYWORD": "domain_keyword",
+    "URL-REGEX": "domain_regex",
+    "DOMAIN-REGEX": "domain_regex",
+    "IP-CIDR": "ip_cidr",
+    "IP-CIDR6": "ip_cidr",
+    "IP6-CIDR": "ip_cidr",
+    "SRC-IP-CIDR": "source_ip_cidr",
+    "PROCESS-NAME": "process_name",
+    "PROCESS-PATH": "process_path",
+    "PROCESS-PATH-REGEX": "process_path_regex",
+    "PACKAGE-NAME": "package_name",
+    "NETWORK": "network",
+}
+DEPRECATED_PATTERNS = {"GEOIP", "SOURCE-GEOIP", "SRC-GEOIP", "GEOSITE"}
+LOGICAL_PATTERNS = {"AND", "OR", "NOT"}
+
+
+def read_links(path: Path) -> list[str]:
+    return [
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+
+
+def fetch_text(url: str) -> str:
+    response = requests.get(url, timeout=30)
     response.raise_for_status()
-    yaml_data = yaml.safe_load(response.text)
-    return yaml_data
+    return response.text
 
-def read_list_from_url(url):
-    df = pd.read_csv(url, header=None, names=['pattern', 'address', 'other', 'other2', 'other3'])
-    filtered_rows = []
-    rules = []
-    # 处理逻辑规则
-    if 'AND' in df['pattern'].values:
-        and_rows = df[df['pattern'].str.contains('AND', na=False)]
-        for _, row in and_rows.iterrows():
-            rule = {
-                "type": "logical",
-                "mode": "and",
-                "rules": []
-            }
-            pattern = ",".join(row.values.astype(str))
-            components = re.findall(r'\((.*?)\)', pattern)
-            for component in components:
-                for keyword in MAP_DICT.keys():
-                    if keyword in component:
-                        match = re.search(f'{keyword},(.*)', component)
-                        if match:
-                            value = match.group(1)
-                            rule["rules"].append({
-                                MAP_DICT[keyword]: value
-                            })
-            rules.append(rule)
-    for index, row in df.iterrows():
-        if 'AND' not in row['pattern']:
-            filtered_rows.append(row)
-    df_filtered = pd.DataFrame(filtered_rows, columns=['pattern', 'address', 'other', 'other2', 'other3'])
-    return df_filtered, rules
 
-def is_ipv4_or_ipv6(address):
+def parse_rule_source(text: str, source_name: str = "") -> dict[str, set[str]]:
+    payload_items = extract_payload_items(text)
+    items = payload_items if payload_items is not None else text.splitlines()
+    field_values: dict[str, set[str]] = defaultdict(set)
+
+    for raw_item in items:
+        parsed = parse_rule_item(str(raw_item), source_name=source_name)
+        if parsed is None:
+            continue
+        field_name, value = parsed
+        field_values[field_name].add(value)
+
+    return dict(field_values)
+
+
+def extract_payload_items(text: str) -> list[str] | None:
     try:
-        ipaddress.IPv4Network(address)
-        return 'ipv4'
-    except ValueError:
-        try:
-            ipaddress.IPv6Network(address)
-            return 'ipv6'
-        except ValueError:
+        loaded = yaml.safe_load(text)
+    except yaml.YAMLError:
+        return None
+    if isinstance(loaded, dict) and isinstance(loaded.get("payload"), list):
+        return [str(item) for item in loaded["payload"]]
+    return None
+
+
+def parse_rule_item(raw_item: str, source_name: str = "") -> tuple[str, str] | None:
+    item = raw_item.strip().strip("'").strip('"')
+    if not item or item.startswith("#"):
+        return None
+
+    if "," in item:
+        pattern_token, remainder = item.split(",", 1)
+        pattern_key = pattern_token.strip().upper()
+        if pattern_key in LOGICAL_PATTERNS:
+            LOGGER.warning("Skipping unsupported logical rule in %s: %s", source_name or "<input>", item)
+            return None
+        if pattern_key in DEPRECATED_PATTERNS:
+            LOGGER.warning("Skipping deprecated rule type %s in %s", pattern_key, source_name or "<input>")
             return None
 
-def parse_and_convert_to_dataframe(link):
-    rules = []
-    # 根据链接扩展名分情况处理
-    if link.endswith('.yaml') or link.endswith('.txt'):
-        try:
-            yaml_data = read_yaml_from_url(link)
-            rows = []
-            if not isinstance(yaml_data, str):
-                items = yaml_data.get('payload', [])
-            else:
-                lines = yaml_data.splitlines()
-                line_content = lines[0]
-                items = line_content.split()
-            for item in items:
-                address = item.strip("'")
-                if ',' not in item:
-                    if is_ipv4_or_ipv6(item):
-                        pattern = 'IP-CIDR'
-                    else:
-                        if address.startswith('+') or address.startswith('.'):
-                            pattern = 'DOMAIN-SUFFIX'
-                            address = address[1:]
-                            if address.startswith('.'):
-                                address = address[1:]
-                        else:
-                            pattern = 'DOMAIN'
-                else:
-                    pattern, address = item.split(',', 1)  
-                rows.append({'pattern': pattern.strip(), 'address': address.strip(), 'other': None})
-            df = pd.DataFrame(rows, columns=['pattern', 'address', 'other'])
-        except:
-            df, rules = read_list_from_url(link)
-    else:
-        df, rules = read_list_from_url(link)
-    return df, rules
+        value = remainder.split(",", 1)[0].strip()
+        field_name = normalize_pattern(pattern_key, value)
+        if field_name is None:
+            LOGGER.warning("Skipping unsupported rule type %s in %s", pattern_key, source_name or "<input>")
+            return None
+        normalized_value = normalize_value(field_name, value)
+        if normalized_value is None:
+            LOGGER.warning("Skipping invalid value for %s in %s: %s", field_name, source_name or "<input>", item)
+            return None
+        return field_name, normalized_value
 
-# 对字典进行排序，含list of dict
-def sort_dict(obj):
-    if isinstance(obj, dict):
-        return {k: sort_dict(obj[k]) for k in sorted(obj)}
-    elif isinstance(obj, list) and all(isinstance(elem, dict) for elem in obj):
-        return sorted([sort_dict(x) for x in obj], key=lambda d: sorted(d.keys())[0])
-    elif isinstance(obj, list):
-        return sorted(sort_dict(x) for x in obj)
-    else:
-        return obj
+    inferred_field, inferred_value = infer_rule_item(item)
+    normalized_value = normalize_value(inferred_field, inferred_value)
+    if normalized_value is None:
+        LOGGER.warning("Skipping invalid inferred value in %s: %s", source_name or "<input>", item)
+        return None
+    return inferred_field, normalized_value
 
-def parse_list_file(link, output_directory):
+
+def normalize_pattern(pattern_key: str, value: str) -> str | None:
+    if pattern_key == "DST-PORT":
+        return "port_range" if is_port_range(value) else "port"
+    if pattern_key == "SRC-PORT":
+        return "source_port_range" if is_port_range(value) else "source_port"
+    return PATTERN_MAP.get(pattern_key)
+
+
+def is_port_range(value: str) -> bool:
+    return any(separator in value for separator in ("-", ":"))
+
+
+def infer_rule_item(item: str) -> tuple[str, str]:
+    value = item.strip()
+    if value.startswith(("+", ".")):
+        return "domain_suffix", value.lstrip("+.")
+    if is_ip_or_cidr(value):
+        return "ip_cidr", value
+    return "domain", value
+
+
+def is_ip_or_cidr(value: str) -> bool:
     try:
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            results= list(executor.map(parse_and_convert_to_dataframe, [link]))  # 使用executor.map并行处理链接, 得到(df, rules)元组的列表
-            dfs = [df for df, rules in results]   # 提取df的内容
-            rules_list = [rules for df, rules in results]  # 提取逻辑规则rules的内容
-            df = pd.concat(dfs, ignore_index=True)  # 拼接为一个DataFrame
-        df = df[~df['pattern'].str.contains('#')].reset_index(drop=True)  # 删除pattern中包含#号的行
-        df = df[df['pattern'].isin(MAP_DICT.keys())].reset_index(drop=True)  # 删除不在字典中的pattern
-        df = df.drop_duplicates().reset_index(drop=True)  # 删除重复行
-        df['pattern'] = df['pattern'].replace(MAP_DICT)  # 替换pattern为字典中的值
-        os.makedirs(output_directory, exist_ok=True)  # 创建自定义文件夹
+        ipaddress.ip_network(value, strict=False)
+        return True
+    except ValueError:
+        return False
 
-        result_rules = {"version": 1, "rules": []}
-        domain_entries = []
-        for pattern, addresses in df.groupby('pattern')['address'].apply(list).to_dict().items():
-            if pattern == 'domain_suffix':
-                rule_entry = {pattern: [address.strip() for address in addresses]}
-                result_rules["rules"].append(rule_entry)
-                # domain_entries.extend([address.strip() for address in addresses])  # 1.9以下的版本需要额外处理 domain_suffix
-            elif pattern == 'domain':
-                domain_entries.extend([address.strip() for address in addresses])
-            else:
-                rule_entry = {pattern: [address.strip() for address in addresses]}
-                result_rules["rules"].append(rule_entry)
-        # 删除 'domain_entries' 中的重复值
-        domain_entries = list(set(domain_entries))
-        if domain_entries:
-            result_rules["rules"].insert(0, {'domain': domain_entries})
 
-        # 处理逻辑规则
-        """
-        if rules_list[0] != "[]":
-            result_rules["rules"].extend(rules_list[0])
-        """
+def normalize_value(field_name: str, value: str) -> str | None:
+    normalized = value.strip()
+    if not normalized:
+        return None
 
-        # 使用 output_directory 拼接完整路径
-        file_name = os.path.join(output_directory, f"{os.path.basename(link).split('.')[0]}.json")
-        with open(file_name, 'w', encoding='utf-8') as output_file:
-            result_rules_str = json.dumps(sort_dict(result_rules), ensure_ascii=False, indent=2)
-            result_rules_str = result_rules_str.replace('\\\\', '\\')
-            output_file.write(result_rules_str)
+    if field_name in DOMAIN_FIELDS:
+        return normalized.lower()
+    if field_name in {"ip_cidr", "source_ip_cidr"}:
+        if not is_ip_or_cidr(normalized):
+            return None
+    return normalized
 
-        srs_path = file_name.replace(".json", ".srs")
-        os.system(f"sing-box rule-set compile --output {srs_path} {file_name}")
-        return file_name
-    except:
-        print(f'获取链接出错，已跳过：{link}')
-        pass
 
-# 读取 links.txt 中的每个链接并生成对应的 JSON 文件
-with open("../links.txt", 'r') as links_file:
-    links = links_file.read().splitlines()
+def build_documents(stem: str, field_values: Mapping[str, set[str]]) -> dict[str, dict[str, object]]:
+    clean_values = {field: values for field, values in field_values.items() if values}
+    documents: dict[str, dict[str, object]] = {}
 
-links = [l for l in links if l.strip() and not l.strip().startswith("#")]
+    generic_rules = build_rule_list(clean_values)
+    if generic_rules:
+        documents[f"{stem}.json"] = {"version": 4, "rules": generic_rules}
 
-output_dir = "./"
-result_file_names = []
+    domain_values = {field: clean_values[field] for field in DOMAIN_FIELDS if field in clean_values}
+    ipcidr_values = {"ip_cidr": clean_values["ip_cidr"]} if "ip_cidr" in clean_values else {}
+    has_other_values = any(field not in DOMAIN_FIELDS and field != "ip_cidr" for field in clean_values)
 
-for link in links:
-    result_file_name = parse_list_file(link, output_directory=output_dir)
-    result_file_names.append(result_file_name)
+    if domain_values and (ipcidr_values or has_other_values):
+        documents[f"DNS_{stem}_domain.json"] = {"version": 4, "rules": build_rule_list(domain_values)}
+    if ipcidr_values:
+        documents[f"DNS_{stem}_ipcidr.json"] = {"version": 4, "rules": build_rule_list(ipcidr_values)}
 
-# 打印生成的文件名
-# for file_name in result_file_names:
-    # print(file_name)
+    return documents
+
+
+def build_rule_list(field_values: Mapping[str, set[str]]) -> list[dict[str, list[str]]]:
+    rules: list[dict[str, list[str]]] = []
+    for field_name in FIELD_ORDER:
+        values = field_values.get(field_name)
+        if values:
+            rules.append({field_name: sorted(values)})
+    return rules
+
+
+def canonical_stem(url: str) -> str:
+    stem = Path(urlparse(url).path).stem
+    if not stem:
+        raise ValueError(f"unable to derive output stem from url: {url}")
+    return stem
+
+
+def write_document(path: Path, document: Mapping[str, object]) -> None:
+    path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def compile_rule_set(json_path: Path, srs_path: Path, sing_box_bin: str) -> None:
+    try:
+        subprocess.run(
+            [sing_box_bin, "rule-set", "compile", "--output", str(srs_path), str(json_path)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            f"failed to compile {json_path.name} with {sing_box_bin}: {exc.stderr.strip() or exc.stdout.strip()}"
+        ) from exc
+
+
+def load_manifest(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return set(data.get("generated_files", []))
+
+
+def write_manifest(path: Path, generated_files: Iterable[str]) -> None:
+    document = {"generated_files": sorted(generated_files)}
+    path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def cleanup_stale_files(output_dir: Path, stale_files: Iterable[str]) -> None:
+    for relative_name in stale_files:
+        stale_path = output_dir / relative_name
+        if stale_path.exists():
+            stale_path.unlink()
+
+
+def run(links_path: Path, output_dir: Path, sing_box_bin: str = "sing-box") -> list[Path]:
+    links = read_links(links_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = output_dir / MANIFEST_NAME
+    previous_files = load_manifest(manifest_path)
+
+    current_files: set[str] = set()
+    generated_paths: list[Path] = []
+
+    for url in links:
+        stem = canonical_stem(url)
+        source_text = fetch_text(url)
+        field_values = parse_rule_source(source_text, source_name=url)
+        documents = build_documents(stem, field_values)
+        if not documents:
+            LOGGER.warning("Skipping %s because no supported rules remain after filtering", url)
+            continue
+
+        for file_name, document in documents.items():
+            json_path = output_dir / file_name
+            write_document(json_path, document)
+            generated_paths.append(json_path)
+            current_files.add(file_name)
+
+            srs_path = json_path.with_suffix(".srs")
+            compile_rule_set(json_path, srs_path, sing_box_bin)
+            generated_paths.append(srs_path)
+            current_files.add(srs_path.name)
+
+    cleanup_stale_files(output_dir, previous_files - current_files)
+    write_manifest(manifest_path, current_files)
+    generated_paths.append(manifest_path)
+    return generated_paths
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Convert remote Clash-style rules into sing-box rule-sets.")
+    parser.add_argument("--links", default="links.txt", type=Path, help="Path to the links.txt input file.")
+    parser.add_argument("--output-dir", default="rule", type=Path, help="Directory for generated JSON and SRS files.")
+    parser.add_argument("--sing-box-bin", default="sing-box", help="Path to the sing-box binary.")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    args = parse_args(argv)
+    generated_paths = run(args.links, args.output_dir, sing_box_bin=args.sing_box_bin)
+    LOGGER.info("Generated %d files", len(generated_paths))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
