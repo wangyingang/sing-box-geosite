@@ -221,3 +221,31 @@ def test_run_cleans_up_stale_generated_files(tmp_path, monkeypatch):
 
     manifest = json.loads((output_dir / ".generated-manifest.json").read_text(encoding="utf-8"))
     assert manifest["generated_files"] == ["Alpha.json", "Alpha.srs"]
+
+
+def test_run_bootstraps_cleanup_when_manifest_is_missing(tmp_path, monkeypatch):
+    links_path = tmp_path / "links.txt"
+    links_path.write_text("https://example.com/Alpha.list\n", encoding="utf-8")
+    output_dir = tmp_path / "rule"
+    output_dir.mkdir()
+
+    (output_dir / "Advertising.json").write_text("legacy", encoding="utf-8")
+    (output_dir / "Advertising.srs").write_text("legacy", encoding="utf-8")
+    (output_dir / "placehold.txt").write_text("", encoding="utf-8")
+
+    def fake_fetch_text(_url: str) -> str:
+        return "DOMAIN,alpha.example"
+
+    def fake_compile_rule_set(json_path: Path, srs_path: Path, _sing_box_bin: str) -> None:
+        srs_path.write_text(f"compiled:{json_path.name}", encoding="utf-8")
+
+    monkeypatch.setattr(main, "fetch_text", fake_fetch_text)
+    monkeypatch.setattr(main, "compile_rule_set", fake_compile_rule_set)
+
+    main.run(links_path=links_path, output_dir=output_dir, sing_box_bin="sing-box")
+
+    assert not (output_dir / "Advertising.json").exists()
+    assert not (output_dir / "Advertising.srs").exists()
+    assert (output_dir / "Alpha.json").exists()
+    assert (output_dir / "Alpha.srs").exists()
+    assert (output_dir / "placehold.txt").exists()

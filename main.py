@@ -245,11 +245,26 @@ def cleanup_stale_files(output_dir: Path, stale_files: Iterable[str]) -> None:
             stale_path.unlink()
 
 
+def discover_legacy_generated_files(output_dir: Path) -> set[str]:
+    legacy_files: set[str] = set()
+    for path in output_dir.iterdir():
+        if not path.is_file():
+            continue
+        if path.name == MANIFEST_NAME:
+            continue
+        if path.suffix not in {".json", ".srs"}:
+            continue
+        legacy_files.add(path.name)
+    return legacy_files
+
+
 def run(links_path: Path, output_dir: Path, sing_box_bin: str = "sing-box") -> list[Path]:
     links = read_links(links_path)
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = output_dir / MANIFEST_NAME
     previous_files = load_manifest(manifest_path)
+    if not previous_files and not manifest_path.exists():
+        previous_files = discover_legacy_generated_files(output_dir)
 
     current_files: set[str] = set()
     generated_paths: list[Path] = []
