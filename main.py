@@ -263,8 +263,9 @@ def run(links_path: Path, output_dir: Path, sing_box_bin: str = "sing-box") -> l
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = output_dir / MANIFEST_NAME
     previous_files = load_manifest(manifest_path)
+    discovered_files = discover_legacy_generated_files(output_dir)
     if not previous_files and not manifest_path.exists():
-        previous_files = discover_legacy_generated_files(output_dir)
+        previous_files = discovered_files
 
     current_files: set[str] = set()
     generated_paths: list[Path] = []
@@ -289,7 +290,7 @@ def run(links_path: Path, output_dir: Path, sing_box_bin: str = "sing-box") -> l
             generated_paths.append(srs_path)
             current_files.add(srs_path.name)
 
-    cleanup_stale_files(output_dir, previous_files - current_files)
+    cleanup_stale_files(output_dir, (previous_files | discovered_files) - current_files)
     write_manifest(manifest_path, current_files)
     generated_paths.append(manifest_path)
     return generated_paths
