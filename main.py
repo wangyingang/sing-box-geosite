@@ -182,11 +182,13 @@ def build_documents(stem: str, field_values: Mapping[str, set[str]]) -> dict[str
 
     domain_values = {field: clean_values[field] for field in DOMAIN_FIELDS if field in clean_values}
     ipcidr_values = {"ip_cidr": clean_values["ip_cidr"]} if "ip_cidr" in clean_values else {}
-    has_other_values = any(field not in DOMAIN_FIELDS and field != "ip_cidr" for field in clean_values)
+    has_domain_fields = bool(domain_values)
+    has_ip_cidr = bool(ipcidr_values)
+    has_other_fields = any(field not in DOMAIN_FIELDS and field != "ip_cidr" for field in clean_values)
 
-    if domain_values and (ipcidr_values or has_other_values):
+    if has_domain_fields and (has_ip_cidr or has_other_fields):
         documents[f"DNS_{stem}_domain.json"] = {"version": 4, "rules": build_rule_list(domain_values)}
-    if ipcidr_values:
+    if has_ip_cidr and (has_domain_fields or has_other_fields):
         documents[f"DNS_{stem}_ipcidr.json"] = {"version": 4, "rules": build_rule_list(ipcidr_values)}
 
     return documents

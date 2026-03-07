@@ -56,21 +56,23 @@ def test_parse_rule_source_supports_yaml_payload_and_plain_item_inference():
     ("field_values", "expected_names"),
     [
         ({"domain": {"a.com"}}, {"Sample.json"}),
+        ({"ip_cidr": {"192.0.2.0/24"}}, {"Sample.json"}),
+        ({"port": {"443"}, "process_name": {"curl"}}, {"Sample.json"}),
         (
             {"domain": {"a.com"}, "port": {"443"}},
             {"Sample.json", "DNS_Sample_domain.json"},
         ),
         (
-            {"ip_cidr": {"192.0.2.0/24"}},
+            {"ip_cidr": {"192.0.2.0/24"}, "process_name": {"curl"}},
             {"Sample.json", "DNS_Sample_ipcidr.json"},
+        ),
+        (
+            {"domain": {"a.com"}, "ip_cidr": {"192.0.2.0/24"}},
+            {"Sample.json", "DNS_Sample_domain.json", "DNS_Sample_ipcidr.json"},
         ),
         (
             {"domain": {"a.com"}, "ip_cidr": {"192.0.2.0/24"}, "port": {"443"}},
             {"Sample.json", "DNS_Sample_domain.json", "DNS_Sample_ipcidr.json"},
-        ),
-        (
-            {"port": {"443"}, "process_name": {"curl"}},
-            {"Sample.json"},
         ),
     ],
 )
@@ -191,12 +193,11 @@ def test_run_cleans_up_stale_generated_files(tmp_path, monkeypatch):
         [
             "\n".join(
                 [
-                    "DOMAIN,alpha.example",
                     "IP-CIDR,192.0.2.0/24",
                     "DST-PORT,443",
                 ]
             ),
-            "DOMAIN,alpha.example",
+            "IP-CIDR,192.0.2.0/24",
         ]
     )
 
@@ -221,6 +222,35 @@ def test_run_cleans_up_stale_generated_files(tmp_path, monkeypatch):
 
     manifest = json.loads((output_dir / ".generated-manifest.json").read_text(encoding="utf-8"))
     assert manifest["generated_files"] == ["Alpha.json", "Alpha.srs"]
+
+
+def test_run_with_ip_cidr_only_generates_generic_output_only(tmp_path, monkeypatch):
+    links_path = tmp_path / "links.txt"
+    links_path.write_text("https://example.com/Alpha.list\n", encoding="utf-8")
+
+    output_dir = tmp_path / "rule"
+    compile_calls = []
+
+    def fake_fetch_text(_url: str) -> str:
+        return "IP-CIDR,192.0.2.0/24"
+
+    def fake_compile_rule_set(json_path: Path, srs_path: Path, sing_box_bin: str) -> None:
+        compile_calls.append((json_path.name, srs_path.name, sing_box_bin))
+        srs_path.write_text("compiled", encoding="utf-8")
+
+    monkeypatch.setattr(main, "fetch_text", fake_fetch_text)
+    monkeypatch.setattr(main, "compile_rule_set", fake_compile_rule_set)
+
+    generated = main.run(links_path=links_path, output_dir=output_dir, sing_box_bin="sing-box")
+
+    assert {path.name for path in generated} == {
+        "Alpha.json",
+        "Alpha.srs",
+        ".generated-manifest.json",
+    }
+    assert compile_calls == [("Alpha.json", "Alpha.srs", "sing-box")]
+    assert not (output_dir / "DNS_Alpha_ipcidr.json").exists()
+    assert not (output_dir / "DNS_Alpha_ipcidr.srs").exists()
 
 
 def test_run_bootstraps_cleanup_when_manifest_is_missing(tmp_path, monkeypatch):

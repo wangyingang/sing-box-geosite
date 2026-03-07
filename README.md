@@ -113,7 +113,21 @@ Foo.json
 Foo.srs
 ```
 
-2. 有 domain 类字段，且还有其他非 `ip_cidr` 字段时：
+2. 只有 `ip_cidr` 时：
+
+```text
+Foo.json
+Foo.srs
+```
+
+3. 只有非 DNS 专用字段时：
+
+```text
+Foo.json
+Foo.srs
+```
+
+4. 有 domain 类字段，且无 `ip_cidr`，但存在其他字段时：
 
 ```text
 Foo.json
@@ -122,7 +136,7 @@ DNS_Foo_domain.json
 DNS_Foo_domain.srs
 ```
 
-3. 有 `ip_cidr` 但没有 domain 类字段时：
+5. 有 `ip_cidr`，且无 domain 类字段，但存在其他字段时：
 
 ```text
 Foo.json
@@ -131,7 +145,7 @@ DNS_Foo_ipcidr.json
 DNS_Foo_ipcidr.srs
 ```
 
-4. 同时有 domain 类字段和 `ip_cidr` 时：
+6. 同时有 domain 类字段和 `ip_cidr` 时：
 
 ```text
 Foo.json

@@ -20,8 +20,6 @@
     "DNS_BiliBili_domain.srs",
     "DNS_BiliBili_ipcidr.json",
     "DNS_BiliBili_ipcidr.srs",
-    "DNS_ChinaIPs_ipcidr.json",
-    "DNS_ChinaIPs_ipcidr.srs",
     "DNS_ChinaMaxNoIP_domain.json",
     "DNS_ChinaMaxNoIP_domain.srs",
     "DNS_GlobalMedia_domain.json",
